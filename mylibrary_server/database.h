@@ -3,7 +3,7 @@
 
 #include <libpq-fe.h>
 
-#define DB_STRING "user=postgres dbname=MyLibrary"
+#define DB_STRING "user=postgres dbname=libreria"
 
 PGconn *connetti(char *connessione);
 void disconnetti(PGconn *conn);
