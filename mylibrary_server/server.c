@@ -96,14 +96,14 @@ void starta_server() {
         
         if (client_fd < 0) {
             perror("Errore durante l'accettazione della connessione");
-            continue; // Se c'è un errore nell'accept, continua il ciclo
+            continue;
         }
         printf("Server: Connessione accettata!\n");
 
         // Crea un nuovo thread per gestire la connessione del client
         if (pthread_create(&thread_id, NULL, gestisci_client, (void *)&client_fd) < 0) {
             perror("Errore nella creazione del thread");
-            continue; // Se c'è un errore nella creazione del thread, continua il ciclo
+            continue;
         }
 
         // detach del thread per non dover aspettare il termine prima di continuare
@@ -113,8 +113,7 @@ void starta_server() {
     close(server_fd);
 }
 
-// Funzione main
 int main() {
-    starta_server();  // Avvia il server
+    starta_server(); 
     return 0;
 }
