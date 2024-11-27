@@ -56,10 +56,6 @@ int processa_input_client(char *richiesta, char *risposta, int socket_fd)
    modpass(dati,risposta);
    break;
    
- case LOGOUT_COMMAND:
-  comando = gestisci_logout(socket_fd);
-   break;
-   
 default:
    sprintf(risposta, "Comando non riconosciuto: %d", comando);
    break;
@@ -76,14 +72,17 @@ void loginC(char *dati, char *risposta){
 char *username = strtok(dati,"|");
 char *password = strtok(NULL,"|");
 
-int esito = login(username,password);
+    int user_id = 0;
+    int max_prestiti = 0;
+    int esito = login(username, password,&user_id,&max_prestiti);
+
 
 if (esito == 1)
-    crea_risposta_login(LOGIN_OK,username,risposta);
+     crea_risposta_login(LOGIN_OK,username,user_id,max_prestiti,risposta);
 else if (esito == 0)
-    crea_risposta_login(LOGINNONTROVATO,username,risposta);
+    crea_risposta_login(LOGINNONTROVATO,username,0,0,risposta);
 else 
-   crea_risposta_login(LOGIN_ERR,username,risposta);
+   crea_risposta_login(LOGIN_ERR,username,0,0,risposta);
 
 }
 
@@ -92,7 +91,7 @@ void reg(char *dati, char *risposta){
 char *username = strtok(dati,"|");
 char *password = strtok(NULL,"|");
 
-int check_registrato = login(username,password);
+int check_registrato = check(username);
 
 if(check_registrato == 1)
    crea_risposta_registrazione(GIAREGISTRATO,risposta,username);
@@ -138,9 +137,9 @@ void cerca_libro_disponibile(char *dati, char *risposta){
 PGresult *esito = cercaLibroDisponibile();
 
 if(esito != NULL)
-  crea_risposta_cerca_libro_genere(CERCA_LIBRO_DISPONIBILI_OK,esito,risposta);
+  crea_risposta_cerca_libro_disponibili(CERCA_LIBRO_DISPONIBILI_OK,esito,risposta);
 else
-  crea_risposta_cerca_libro_genere(CERCA_LIBRO_DISPONIBILI_ERR,esito,risposta);
+  crea_risposta_cerca_libro_disponibili(CERCA_LIBRO_DISPONIBILI_ERR,esito,risposta);
   
   
 }
@@ -199,7 +198,7 @@ int esito = checkout(userId);
 if(esito == 1)
 crea_risposta_checkout(CHECKOUT_OK,risposta);
 else if(esito == 3)
-crea_risposta_checkout(CARRELLOVUOTO,risposta);
+crea_risposta_checkout(MAXPRESTITI_ERR,risposta);
 else
 crea_risposta_checkout(CHECKOUT_ERR,risposta);
 
@@ -223,12 +222,3 @@ crea_risposta_modifica_password(MODPASS_ERR,risposta);
 
 }
 
-int gestisci_logout(int socket_fd){
-
-printf("\nClient connesso alla socket_fd: %d ha effettuato il logout.\n",socket_fd);
-
-chiudi_socket(socket_fd);
-
-return LOGOUT_COMMAND;
-
-}

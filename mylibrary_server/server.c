@@ -28,12 +28,12 @@ printf("Richiesta ricevuta: %s\n",buffer);
 
 comando = processa_input_client(buffer, risposta , sock);
 
-if(strlen(risposta) > 0)
+if(strlen(risposta) > 0){
   if (send(sock, risposta, strlen(risposta), 0) < 0) {
                 perror("Errore nell'invio della risposta");
                 break;
             }
-else
+} else
    printf("Server: Errore durante il recupero delle richieste.\n");   
 }
 
@@ -96,14 +96,14 @@ void starta_server() {
         
         if (client_fd < 0) {
             perror("Errore durante l'accettazione della connessione");
-            continue;
+            continue; 
         }
         printf("Server: Connessione accettata!\n");
 
         // Crea un nuovo thread per gestire la connessione del client
         if (pthread_create(&thread_id, NULL, gestisci_client, (void *)&client_fd) < 0) {
             perror("Errore nella creazione del thread");
-            continue;
+            continue; 
         }
 
         // detach del thread per non dover aspettare il termine prima di continuare
@@ -113,7 +113,8 @@ void starta_server() {
     close(server_fd);
 }
 
+
 int main() {
-    starta_server(); 
+    starta_server();  
     return 0;
 }

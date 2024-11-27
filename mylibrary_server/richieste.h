@@ -26,6 +26,7 @@
 #define CHECKOUT_ERR 208
 #define MODPASS_ERR 209
 #define VISUALIZZA_CARRELLO_ERR 210
+#define MAXPRESTITI_ERR 211
 
 // client
 #define LOGIN 1
@@ -47,12 +48,9 @@
 #define LIBRODUPLICATO 305
 #define VECCHIAPASSWORDERRATA 306
 
-//LOGOUT
-#define LOGOUT_COMMAND 307
-
 
 //funzioni da mandare al client
-void crea_risposta_login(int comando, char *username, char *risposta);
+void crea_risposta_login(int comando, char *username,int user_id,int max_prestiti,char *risposta);
 void crea_risposta_registrazione(int comando, char *risposta, char *username);
 void crea_risposta_cerca_libro(int comando, PGresult *res, char *risposta);
 void crea_risposta_cerca_libro_genere(int comando, PGresult *res, char *risposta);

@@ -59,7 +59,7 @@ if(conn != NULL){
 }
 
 //login
-int login(char *username, char *password) {
+int login(char *username, char *password,int *user_id,int *max_prestiti) {
     PGconn *conn = connetti(DB_STRING);
     PGresult *res;
     char query[1024];
@@ -68,14 +68,45 @@ int login(char *username, char *password) {
     if (conn != NULL) {
         printf("Connessione DB ok!\n");
 
-        sprintf(query, "SELECT * FROM utente WHERE username = $$%s$$ AND password = $$%s$$", username, password);
+        sprintf(query, "SELECT id_utente,max_prestiti FROM utente WHERE username = $$%s$$ AND password = $$%s$$", username, password);
         res = PQexec(conn, query);
 
         if (PQresultStatus(res) == PGRES_TUPLES_OK) {
-            if (PQntuples(res) > 0) 
+            if (PQntuples(res) > 0){ 
+                *user_id = atoi(PQgetvalue(res, 0, 0));
+                *max_prestiti = atoi(PQgetvalue(res, 0, 1)); 
                 exit = 1;  // Login riuscito
-            else 
+            }else 
                 exit = 0;  // Credenziali non valide   
+      }else 
+            printf("Errore nella query di login: %s\n", PQresultErrorMessage(res));
+
+        PQclear(res);  
+    } else
+        printf("Error: Connessione al DB Fallita!\n");
+
+    disconnetti(conn);
+    return exit;
+}
+
+//checkgiaregistrato
+int check(char *username){
+    PGconn *conn = connetti(DB_STRING);
+    PGresult *res;
+    char query[1024];
+    int exit = 2;  
+
+    if (conn != NULL) {
+        printf("Connessione DB ok!\n");
+
+        sprintf(query, "SELECT * FROM utente WHERE username = $$%s$$", username);
+        res = PQexec(conn, query);
+
+        if (PQresultStatus(res) == PGRES_TUPLES_OK) {
+            if (PQntuples(res) > 0){  
+                exit = 1;  // utente già registrato
+            }else 
+                exit = 0;  // utente non registrato   
       }else 
             printf("Errore nella query di login: %s\n", PQresultErrorMessage(res));
 
@@ -96,8 +127,12 @@ PGresult* cercaLibro(char *testo) {
 
     if (conn != NULL) {
         printf("Connessione DB ok!\n");
-
-        sprintf(query, "SELECT * FROM libro WHERE titolo LIKE '%%%s%%' OR autore LIKE '%%%s%%'", testo, testo);
+        
+        if (testo == NULL || strlen(testo) == 0)
+        sprintf(query, "SELECT id_libro, titolo, autore ,num_copie_disponibili,genere  FROM libro");
+        else
+        sprintf(query, "SELECT  id_libro, titolo, autore ,num_copie_disponibili,genere  FROM libro WHERE titolo ILIKE '%%%s%%' OR autore ILIKE '%%%s%%'", testo, testo);
+        
         res = PQexec(conn, query);
 
         if (PQresultStatus(res) != PGRES_TUPLES_OK) {
@@ -122,7 +157,7 @@ PGresult* cercaLibroPerGenere(char *genere) {
     if (conn != NULL) {
         printf("Connessione DB ok!\n");
 
-        sprintf(query, "SELECT * FROM libro WHERE genere = '%s'", genere);
+        sprintf(query, "SELECT  id_libro, titolo, autore ,num_copie_disponibili,genere  FROM libro WHERE genere = '%s'", genere);
         res = PQexec(conn, query);
 
         if (PQresultStatus(res) != PGRES_TUPLES_OK) {
@@ -147,7 +182,7 @@ PGresult* cercaLibroDisponibile() {
     if (conn != NULL) {
         printf("Connessione DB ok!\n");
 
-        const char *query = "SELECT * FROM libro WHERE num_copie_disponibili > 0";
+        const char *query = "SELECT  id_libro, titolo, autore ,num_copie_disponibili,genere FROM libro WHERE num_copie_disponibili > 0";
         res = PQexec(conn, query);
 
         if (PQresultStatus(res) != PGRES_TUPLES_OK) {
@@ -164,30 +199,35 @@ PGresult* cercaLibroDisponibile() {
 
 
 //aggiungi al carrello
-int addCarrello(int userId,int libroId){
-PGconn *conn = connetti(DB_STRING);
-PGresult *res = NULL;
-char query[1024];
-int exit = 2;
+int addCarrello(int userId, int libroId) {
+    PGconn *conn = connetti(DB_STRING);
+    PGresult *res = NULL;
+    char query[1024];
+    int exit = 2;
 
-if(conn != NULL){
-  sprintf(query,"INSERT INTO carrello (user_id, libro_id) "
-                 "SELECT %d, %d WHERE NOT EXISTS ("
-                 "SELECT 1 FROM carrello WHERE user_id = %d AND libro_id = %d);",
-                 userId, libroId, userId, libroId);
-  res = PQexec(conn,query);
-  
-   if (PQresultStatus(res) == PGRES_COMMAND_OK) {
-            if (PQntuples(res) > 0) {  
+    if (conn != NULL) {
+        // Verifica se il libro è già presente nel carrello
+        sprintf(query, "SELECT 1 FROM carrello WHERE user_id = %d AND libro_id = %d;", userId, libroId);
+        res = PQexec(conn, query);
+
+        if (PQresultStatus(res) == PGRES_TUPLES_OK && PQntuples(res) > 0) {
+            // Il libro è già presente nel carrello
+            exit = 0; // Duplicato
+        } else {
+            // Il libro non è presente nel carrello, quindi inseriamolo
+            sprintf(query, "INSERT INTO carrello (user_id, libro_id) "
+                           "VALUES (%d, %d) "
+                           "ON CONFLICT (user_id, libro_id) DO NOTHING;", 
+                           userId, libroId);
+            res = PQexec(conn, query);
+
+            if (PQresultStatus(res) == PGRES_COMMAND_OK) {
                 printf("Libro aggiunto al carrello con successo!\n");
                 exit = 1; // Successo
             } else {
-                printf("Il libro è già presente nel carrello.\n");
-                exit = 0; //errore duplicato
+                printf("Errore nell'aggiunta al carrello: %s\n", PQresultErrorMessage(res));
+                exit = 2; // Errore nell'esecuzione della query
             }
-        } else {
-            printf("Errore nell'aggiunta al carrello: %s\n", PQresultErrorMessage(res));
-            exit = 2; // Errore nell'esecuzione della query
         }
 
         PQclear(res);
@@ -199,6 +239,7 @@ if(conn != NULL){
     disconnetti(conn);
     return exit;
 }
+
 
 
 //elimina dal carrello
@@ -234,9 +275,9 @@ PGresult *res = NULL;
 char query[1024];
 
 if(conn != NULL){
-  sprintf(query,"SELECT l.id_libro, l.titolo, l.autore ,l.num_copie_disponibili "
+  sprintf(query,"SELECT l.id_libro, l.titolo, l.autore ,l.num_copie_disponibili, l.genere "
              "FROM carrello c "
-             "JOIN libro l ON c.libro_id = l.id "
+             "JOIN libro l ON c.libro_id = l.id_libro "
              "WHERE c.user_id = %d;",userId);
   res = PQexec(conn,query);
    if (PQresultStatus(res) != PGRES_TUPLES_OK) {
@@ -253,87 +294,85 @@ return res;
 }
 
 //checkout
-int checkout(int userId){
+int checkout(int userId) {
     PGconn *conn = connetti(DB_STRING);
     PGresult *res = NULL;
-    char query[1024];
+    char query[2048];
     int exit = 1;  // successo
 
     if (conn != NULL) {
         printf("Connessione al database riuscita!\n");
 
-        sprintf(query, "SELECT l.id_libro, l.num_copie_disponibili FROM carrello c "
-                        "JOIN libro l ON c.libro_id = l.id_libro "
-                        "WHERE c.user_id = %d;", userId);
+        // Query per verificare se il checkout supera il limite massimo
+        sprintf(query, 
+                "WITH prestiti_correnti AS ("
+                "    SELECT COUNT(*) AS num_prestiti "
+                "    FROM prestito "
+                "    WHERE id_utente = %d AND restituito = FALSE"
+                "), "
+                "carrello_corrente AS ("
+                "    SELECT COUNT(*) AS num_carrello "
+                "    FROM carrello "
+                "    WHERE user_id = %d AND is_checkout = FALSE"
+                ") "
+                "SELECT "
+                "    (SELECT num_prestiti FROM prestiti_correnti) AS prestiti_attivi, "
+                "    (SELECT num_carrello FROM carrello_corrente) AS libri_carrello, "
+                "    u.max_prestiti "
+                "FROM utente u "
+                "WHERE u.id_utente = %d;",
+                userId, userId, userId);
+
         res = PQexec(conn, query);
-        
+
         if (PQresultStatus(res) != PGRES_TUPLES_OK || PQntuples(res) == 0) {
-            printf("Errore: Carrello vuoto o errore nella selezione dei libri.\n");
-            exit = 3;  // Errore carrello vuoto || errore select
+            printf("Errore nel calcolo del numero massimo di prestiti: %s\n", PQresultErrorMessage(res));
             PQclear(res);
-            return exit;
+            disconnetti(conn);
+            return 2; // Errore durante il controllo
         }
 
-        int numLibri = PQntuples(res);
+        int prestitiAttivi = atoi(PQgetvalue(res, 0, 0));
+        int libriCarrello = atoi(PQgetvalue(res, 0, 1));
+        int maxPrestiti = atoi(PQgetvalue(res, 0, 2));
 
-        // check copie disponibili
-        for (int i = 0; i < numLibri; i++) {
-            int libroId = atoi(PQgetvalue(res, i, 0));  // ID del libro
-            int numCopieDisponibili = atoi(PQgetvalue(res, i, 4));  // Numero di copie disponibili
-
-            if (numCopieDisponibili <= 0) {
-                printf("Errore: Il libro con ID %d non ha copie disponibili!\n", libroId);
-                exit = 4;  // Errore se il libro non ha copie disponibili
-                PQclear(res);
-                return exit;
-            }
+        if (prestitiAttivi + libriCarrello > maxPrestiti) {
+            printf("Errore: Numero massimo di prestiti raggiunto (%d). Non puoi prendere altri %d libri.\n",
+                   maxPrestiti, maxPrestiti - prestitiAttivi);
+            PQclear(res);
+            disconnetti(conn);
+            return 3; // Superato il limite massimo di prestiti
         }
 
-        // tutti i libri disponibili -> update
-        for (int i = 0; i < numLibri; i++) {
-            int libroId = atoi(PQgetvalue(res, i, 0));
+        PQclear(res);
 
-            sprintf(query, "UPDATE libro SET num_copie_disponibili = num_copie_disponibili - 1 "
-                           "WHERE id_libro = %d AND num_copie_disponibili > 0;", libroId);
+     //setto is_checkout a true per far scatenare il trigger
+      sprintf(query, 
+                "UPDATE carrello "
+                "SET is_checkout = TRUE "
+                "WHERE user_id = %d AND is_checkout = FALSE;", 
+                userId);
+        res = PQexec(conn, query);
+
+        if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+            printf("Errore nell'aggiornamento del carrello: %s\n", PQresultErrorMessage(res));
             PQclear(res);
-            res = PQexec(conn, query);
-
-            if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-                printf("Errore nell'aggiornamento delle copie per il libro ID %d: %s\n", libroId, PQresultErrorMessage(res));
-                exit = 5;  // Errore nell'aggiornamento delle copie disponibili
-                PQclear(res);
-                return exit;
-            }
-
-            sprintf(query, "INSERT INTO prestito (user_id, libro_id) VALUES (%d, %d);", userId, libroId);
-            PQclear(res);
-            res = PQexec(conn, query);
-
-            if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-                printf("Errore nell'inserimento del prestito per il libro ID %d: %s\n", libroId, PQresultErrorMessage(res));
-                exit = 6;  // Errore nell'inserimento del prestito
-                PQclear(res);
-                return exit;
-            }
-
-            // rimuovi dal carrello
-            if (removeCarrello(userId, libroId) != 1) {
-                printf("Errore nella rimozione del libro ID %d dal carrello\n", libroId);
-                exit = 7;  // Errore nella rimozione del libro dal carrello
-                PQclear(res);
-                return exit;
-            }
+            disconnetti(conn);
+            return 4;  // Errore nell'aggiornamento del carrello
         }
+
         printf("Checkout completato con successo!\n");
     } else {
         printf("Errore: Connessione al DB fallita!\n");
-        exit = 2;  // Errore connessione al DB
+        exit = 2; // Errore connessione al DB
     }
 
     PQclear(res);
     disconnetti(conn);
     return exit;
 }
+
+
 
 //aggiorna password
 int aggiornaPassword(int userId, const char *vecchiaPassword, const char *nuovaPassword){
@@ -347,17 +386,19 @@ int aggiornaPassword(int userId, const char *vecchiaPassword, const char *nuovaP
         
         sprintf(query, 
                 "UPDATE utente SET password = $$%s$$ "
-                "WHERE id = %d AND password = $$%s$$;", 
+                "WHERE id_utente = %d AND password = $$%s$$;", 
                 nuovaPassword, userId, vecchiaPassword);
 
         res = PQexec(conn, query);
 
-        if (PQresultStatus(res) == PGRES_COMMAND_OK && PQntuples(res) > 0) {
-            printf("Password aggiornata con successo!\n");
-            exit = 1; // Successo
-        } else if (PQresultStatus(res) == PGRES_COMMAND_OK && PQntuples(res) == 0) {
-            printf("Errore: la vecchia password non è corretta!\n");
-            exit = 3; // Vecchia password non corretta
+        if (PQresultStatus(res) == PGRES_COMMAND_OK) {
+            if (atoi(PQcmdTuples(res)) > 0) {
+                printf("Password aggiornata con successo!\n");
+                exit = 1; // Successo
+            } else {
+                printf("Errore: la vecchia password non è corretta o l'utente non esiste!\n");
+                exit = 3; // Vecchia password non corretta
+            }
         } else {
             printf("Errore nell'aggiornamento della password: %s\n", PQresultErrorMessage(res));
             exit = 4; // Errore nell'aggiornamento

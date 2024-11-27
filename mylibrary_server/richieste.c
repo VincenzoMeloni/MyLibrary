@@ -4,11 +4,11 @@
 
 #include "richieste.h"
 
-void crea_risposta_login(int comando, char *username, char *risposta)
+void crea_risposta_login(int comando, char *username,int user_id,int max_prestiti,char *risposta)
 {
     switch (comando) {
         case LOGIN_OK:
-            sprintf(risposta, "Comando: %d | Utente: %s loggato con successo!", comando, username);
+            sprintf(risposta, "Comando: %d | Utente: %s loggato con successo! | ID: %d | Max Prestiti: %d",LOGIN_OK, username, user_id, max_prestiti);
             break;
         case LOGIN_ERR:
             sprintf(risposta, "Comando: %d | Errore durante il Login", comando);
@@ -57,11 +57,14 @@ void crea_risposta_cerca_libro(int comando, PGresult *res, char *risposta)
             else {
                 sprintf(risposta, "Comando: %d | Risultato ricerca libri:\n",comando);
                 for (int i = 0; i < num; i++) {
-                    int copie = atoi(PQgetvalue(res, i, 4));
-                    sprintf(tmp + strlen(tmp), "Titolo: %s, Autore: %s, Copie disponibili: %d\n", 
+                    int copie = atoi(PQgetvalue(res, i, 3));
+                    int id = atoi(PQgetvalue(res, i, 0));
+                    sprintf(tmp + strlen(tmp), "ID: %d ,Titolo: %s, Autore: %s, Copie disponibili: %d, Genere: %s\n", 
+                            id, //ID
                             PQgetvalue(res, i, 1), // Titolo
                             PQgetvalue(res, i, 2), // Autore
-                            copie); // Num_copie_disponibili
+                            copie, // Num_copie_disponibili
+                            PQgetvalue(res, i, 4)); //Genere
                 }
                 strcat(risposta, tmp);
             }
@@ -101,15 +104,16 @@ void crea_risposta_cerca_libro_genere(int comando, PGresult *res, char *risposta
             if (num == 0) {
                 sprintf(risposta, "Comando: %d | Nessun libro trovato per il genere.", comando);
             } else {
-                sprintf(risposta, "Comando: %d | Risultati della ricerca per genere:\n", comando); 
+                sprintf(risposta, "Comando: %d | Risultato ricerca libri genere:\n",comando);
                 for (int i = 0; i < num; i++) {
-                    int copie = atoi(PQgetvalue(res, i, 4));  
-                    sprintf(tmp + strlen(tmp),
-                            "Titolo: %s, Autore: %s, Copie disponibili: %d, Genere: %s\n",
+                    int copie = atoi(PQgetvalue(res, i, 3)); 
+                    int id = atoi(PQgetvalue(res, i, 0));
+                    sprintf(tmp + strlen(tmp), "ID: %d ,Titolo: %s, Autore: %s, Copie disponibili: %d, Genere: %s\n", 
+                            id, //ID
                             PQgetvalue(res, i, 1),  // Titolo
                             PQgetvalue(res, i, 2),  // Autore
                             copie,      // Copie disponibili
-                            PQgetvalue(res, i, 5)); // Genere
+                            PQgetvalue(res, i, 4)); // Genere
                 }
                 strcat(risposta, tmp);  
             }
@@ -150,14 +154,16 @@ void crea_risposta_cerca_libro_disponibili(int comando, PGresult *res, char *ris
             if (num == 0) {
                 sprintf(risposta, "Comando: %d | Nessun libro disponibile trovato.", comando);
             } else {
-                sprintf(risposta, "Comando: %d | Risultati della ricerca per libri disponibili:\n", comando);
+                sprintf(risposta, "Comando: %d | Risultato ricerca libri disponibili:\n",comando);
                 for (int i = 0; i < num; i++) {
-                    int copie = atoi(PQgetvalue(res, i, 4));
-                     sprintf(tmp + strlen(tmp),
-                                "Titolo: %s, Autore: %s, Copie disponibili: %d\n",
+                    int copie = atoi(PQgetvalue(res, i, 3));
+                    int id = atoi(PQgetvalue(res, i, 0));
+                     sprintf(tmp + strlen(tmp), "ID: %d ,Titolo: %s, Autore: %s, Copie disponibili: %d, Genere: %s\n", 
+                                id, //ID
                                 PQgetvalue(res, i, 1),  // Titolo
                                 PQgetvalue(res, i, 2),  // Autore
-                                copie);     // Copie disponibili
+                                copie,     // Copie disponibili
+                                PQgetvalue(res, i, 4)); //Genere
                 }
                 strcat(risposta, tmp);  
             }
@@ -193,6 +199,10 @@ void crea_risposta_aggiungi_carrello(int comando, char *risposta)
             sprintf(risposta, "Comando: %d | Errore durante l'aggiunta del libro al carrello.", comando);
             break;
             
+        case LIBRODUPLICATO:
+            sprintf(risposta, "Comando: %d | Errore! Libro già presente nel carrello!", comando);
+            break;
+            
         default:
             sprintf(risposta, "Comando sconosciuto: %d", comando);
             break;
@@ -216,7 +226,6 @@ void crea_risposta_rimuovi_carrello(int comando, char *risposta)
             break;
 
         default:
-
             sprintf(risposta, "Comando sconosciuto: %d", comando);
             break;
     }
@@ -232,10 +241,6 @@ void crea_risposta_checkout(int comando, char *risposta)
 
         case CHECKOUT_ERR:
             sprintf(risposta, "Comando: %d | Errore durante il checkout. Riprova più tardi.", comando);
-            break;
-
-        case CARRELLOVUOTO:
-            sprintf(risposta, "Comando: %d | Il tuo carrello è vuoto. Aggiungi dei libri prima di fare il checkout.", comando);
             break;
 
         default:
@@ -282,20 +287,19 @@ void crea_risposta_visualizza_carrello(int comando, PGresult *res, char *rispost
                
                sprintf(risposta, "Comando: %d | Risultati dei libri nel carrello:\n", comando);
                 for (int i = 0; i < num; i++) {
-                    sprintf(tmp + strlen(tmp), "Titolo: %s, Autore: %s, Copie disponibili: %s\n",
+                    int copie = atoi(PQgetvalue(res, i, 3));
+                    int id = atoi(PQgetvalue(res, i, 0));
+                    sprintf(tmp + strlen(tmp), "ID: %d, Titolo: %s, Autore: %s, Copie disponibili: %d, Genere: %s\n",
+                            id,  // id libro
                             PQgetvalue(res, i, 1), // Titolo
                             PQgetvalue(res, i, 2), // Autore
-                            PQgetvalue(res, i, 3)); // Copie disponibili
+                            copie, // Copie disponibili
+                            PQgetvalue(res, i, 4)); //Genere
                 }
                 strcat(risposta, tmp);
             break;
         }
-
-        case CARRELLOVUOTO: 
-            sprintf(risposta, "Comando: %d | Il tuo carrello è vuoto.", comando);
-            break;
         
-
         case VISUALIZZA_CARRELLO_ERR:
             sprintf(risposta, "Comando: %d | Errore durante il recupero del carrello.", comando);
             break;

@@ -3,12 +3,13 @@
 
 #include <libpq-fe.h>
 
-#define DB_STRING "user=postgres dbname=libreria"
+#define DB_STRING "user=postgres password=postgres dbname=MyLibrary"
 
 PGconn *connetti(char *connessione);
 void disconnetti(PGconn *conn);
 int registra_utente(char *username, char *password);
-int login(char *username, char *password);
+int login(char *username, char *password,int *user_id,int *max_prestiti);
+int check(char *username);
 PGresult *cercaLibro(char *testo);
 PGresult *cercaLibroPerGenere(char *genere);
 PGresult *cercaLibroDisponibile();

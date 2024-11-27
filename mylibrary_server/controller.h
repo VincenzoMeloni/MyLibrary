@@ -12,6 +12,5 @@ void remCarrello(char *dati, char *risposta);
 void visualizza_carrello(char *dati, char *risposta);
 void check_out(char *dati, char *risposta);
 void modpass(char *dati, char *risposta);
-int gestisci_logout(int socket_fd);
 
 #endif
