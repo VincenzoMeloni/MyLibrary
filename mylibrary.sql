@@ -25,13 +25,16 @@ CREATE FUNCTION public.checkout_trigger_function() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
-
     INSERT INTO prestito (id_utente, id_libro, data_prestito, data_scadenza, restituito)
     VALUES (NEW.user_id, NEW.libro_id, NOW(), NOW() + INTERVAL '14 days', FALSE);
 
     UPDATE libro
-    SET num_copie_disponibili = num_copie_disponibili - 1
-    WHERE id_libro = NEW.libro_id AND num_copie_disponibili > 0;
+    SET num_copie_disponibili = num_copie_disponibili - NEW.quantita
+    WHERE id_libro = NEW.libro_id AND num_copie_disponibili >= NEW.quantita;
+
+    UPDATE utente
+    SET max_prestiti = max_prestiti - NEW.quantita
+    WHERE id_utente = NEW.user_id AND max_prestiti >= NEW.quantita;
 
     DELETE FROM carrello
     WHERE user_id = NEW.user_id AND libro_id = NEW.libro_id;
@@ -54,7 +57,8 @@ SET default_table_access_method = heap;
 CREATE TABLE public.carrello (
     user_id integer NOT NULL,
     libro_id integer NOT NULL,
-    is_checkout boolean DEFAULT false
+    is_checkout boolean DEFAULT false,
+    quantita integer DEFAULT 1
 );
 
 
@@ -199,8 +203,7 @@ ALTER TABLE ONLY public.utente ALTER COLUMN id_utente SET DEFAULT nextval('publi
 -- Data for Name: carrello; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.carrello (user_id, libro_id, is_checkout) FROM stdin;
-1	5	f
+COPY public.carrello (user_id, libro_id, is_checkout, quantita) FROM stdin;
 \.
 
 
@@ -209,11 +212,11 @@ COPY public.carrello (user_id, libro_id, is_checkout) FROM stdin;
 --
 
 COPY public.libro (id_libro, titolo, autore, num_copie_tot, num_copie_disponibili, genere) FROM stdin;
-1	Il Signore degli Anelli	J.R.R. Tolkien	10	10	Fantasy
-2	Il Silenzio degli Innocenti	Thomas Harris	7	7	Thriller
-3	Dune	Frank Herbert	5	5	Sci-Fi
-4	Orgoglio e Pregiudizio	Jane Austen	8	8	Romanzo
-5	Il Nome della Rosa	Umberto Eco	6	6	Storia
+3	Dune	Frank Herbert	5	3	Sci-Fi
+5	Il Nome della Rosa	Umberto Eco	6	4	Storia
+2	Il Silenzio degli Innocenti	Thomas Harris	7	3	Thriller
+1	Il Signore degli Anelli	J.R.R. Tolkien	10	5	Fantasy
+4	Orgoglio e Pregiudizio	Jane Austen	8	4	Romanzo
 \.
 
 
@@ -222,6 +225,8 @@ COPY public.libro (id_libro, titolo, autore, num_copie_tot, num_copie_disponibil
 --
 
 COPY public.prestito (id_prestito, id_libro, id_utente, data_prestito, data_scadenza, restituito) FROM stdin;
+16	4	1	2024-12-02 19:09:21.256714	2024-12-16 19:09:21.256714	f
+17	4	1	2024-12-02 19:19:18.785382	2024-12-16 19:19:18.785382	f
 \.
 
 
@@ -230,11 +235,11 @@ COPY public.prestito (id_prestito, id_libro, id_utente, data_prestito, data_scad
 --
 
 COPY public.utente (id_utente, username, password, max_prestiti) FROM stdin;
-1	vincenzo	a	5
 2	marco	merrino	5
 4	silvia	meloni	5
-8	ivano	meliva	5
-3	danny	lazzarin	5
+8	ivano	meliva	3
+3	danny	lazzarin	1
+1	vincenzo	a	0
 \.
 
 
@@ -249,7 +254,7 @@ SELECT pg_catalog.setval('public.libro_id_libro_seq', 5, true);
 -- Name: prestito_id_prestito_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.prestito_id_prestito_seq', 1, false);
+SELECT pg_catalog.setval('public.prestito_id_prestito_seq', 17, true);
 
 
 --
