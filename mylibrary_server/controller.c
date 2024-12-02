@@ -148,15 +148,16 @@ void aggiungiCarrello(char *dati, char *risposta){
 
 int userId = atoi(strtok(dati,"|"));
 int libroId = atoi(strtok(NULL,"|"));
+int maxCopie = 0;
+int quantitaCorrente = 0;
 
-int esito = addCarrello(userId,libroId);
+int esito = addCarrello(userId,libroId,&maxCopie,&quantitaCorrente);
+
 
 if(esito == 1)
-crea_risposta_aggiungi_carrello(ADD_CARRELLO_OK,risposta);
-else if(esito == 0)
-crea_risposta_aggiungi_carrello(LIBRODUPLICATO,risposta);
+crea_risposta_aggiungi_carrello(ADD_CARRELLO_OK,risposta,maxCopie,quantitaCorrente);
 else 
-crea_risposta_aggiungi_carrello(ADD_CARRELLO_ERR,risposta);
+crea_risposta_aggiungi_carrello(ADD_CARRELLO_ERR,risposta,maxCopie,quantitaCorrente);
 
 }
 
@@ -193,14 +194,17 @@ void check_out(char *dati, char *risposta){
 
 int userId = atoi(strtok(dati,"|"));
 
-int esito = checkout(userId);
+int maxPrestiti = 0;
+int esito = checkout(userId,&maxPrestiti);
 
 if(esito == 1)
-crea_risposta_checkout(CHECKOUT_OK,risposta);
+crea_risposta_checkout(CHECKOUT_OK,risposta,maxPrestiti);
 else if(esito == 3)
-crea_risposta_checkout(MAXPRESTITI_ERR,risposta);
+crea_risposta_checkout(MAXPRESTITI_ERR,risposta,maxPrestiti);
+else if(esito == 7)
+crea_risposta_checkout(LIBRONONDISPONIBILE,risposta,maxPrestiti);
 else
-crea_risposta_checkout(CHECKOUT_ERR,risposta);
+crea_risposta_checkout(CHECKOUT_ERR,risposta,maxPrestiti);
 
 
 }

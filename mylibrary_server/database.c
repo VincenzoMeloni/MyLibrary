@@ -198,48 +198,75 @@ PGresult* cercaLibroDisponibile() {
 }
 
 
-//aggiungi al carrello
-int addCarrello(int userId, int libroId) {
+int addCarrello(int userId, int libroId, int *maxCopie, int *quantitaCorrente) {
     PGconn *conn = connetti(DB_STRING);
     PGresult *res = NULL;
     char query[1024];
-    int exit = 2;
+    int exit = 2; // Default: errore generico
 
     if (conn != NULL) {
-        // Verifica se il libro è già presente nel carrello
-        sprintf(query, "SELECT 1 FROM carrello WHERE user_id = %d AND libro_id = %d;", userId, libroId);
+        // Recupera il numero massimo di copie disponibili per il libro
+        sprintf(query, "SELECT num_copie_disponibili FROM libro WHERE id_libro = %d;", libroId);
         res = PQexec(conn, query);
 
         if (PQresultStatus(res) == PGRES_TUPLES_OK && PQntuples(res) > 0) {
-            // Il libro è già presente nel carrello
-            exit = 0; // Duplicato
-        } else {
-            // Il libro non è presente nel carrello, quindi inseriamolo
-            sprintf(query, "INSERT INTO carrello (user_id, libro_id) "
-                           "VALUES (%d, %d) "
-                           "ON CONFLICT (user_id, libro_id) DO NOTHING;", 
-                           userId, libroId);
+            *maxCopie = atoi(PQgetvalue(res, 0, 0));
+            PQclear(res);
+
+            // Controlla se il libro è già presente nel carrello
+            sprintf(query, "SELECT quantita FROM carrello WHERE user_id = %d AND libro_id = %d;", userId, libroId);
             res = PQexec(conn, query);
 
-            if (PQresultStatus(res) == PGRES_COMMAND_OK) {
-                printf("Libro aggiunto al carrello con successo!\n");
-                exit = 1; // Successo
+            if (PQresultStatus(res) == PGRES_TUPLES_OK && PQntuples(res) > 0) {
+                *quantitaCorrente = atoi(PQgetvalue(res, 0, 0));
+                PQclear(res);
+
+                // Aggiorna la quantità e ritorna il valore aggiornato
+                sprintf(query, 
+                    "UPDATE carrello SET quantita = quantita + 1 WHERE user_id = %d AND libro_id = %d RETURNING quantita;", 
+                    userId, libroId);
+                res = PQexec(conn, query);
+
+                if (PQresultStatus(res) == PGRES_TUPLES_OK && PQntuples(res) > 0) {
+                    *quantitaCorrente = atoi(PQgetvalue(res, 0, 0));
+                    printf("Quantità aggiornata nel carrello: %d\n", *quantitaCorrente);
+                    exit = 1; // Successo
+                } else {
+                    printf("Errore nell'aggiornamento della quantità nel carrello: %s\n", PQresultErrorMessage(res));
+                    exit = 2; // Errore nell'esecuzione della query
+                }
             } else {
-                printf("Errore nell'aggiunta al carrello: %s\n", PQresultErrorMessage(res));
-                exit = 2; // Errore nell'esecuzione della query
+                *quantitaCorrente = 0;
+                PQclear(res);
+                // Aggiungi libro al carrello con quantità 1 e ritorna il valore
+                sprintf(query, 
+                    "INSERT INTO carrello (user_id, libro_id, quantita) VALUES (%d, %d, 1) RETURNING quantita;", 
+                    userId, libroId);
+                res = PQexec(conn, query);
+
+                if (PQresultStatus(res) == PGRES_TUPLES_OK && PQntuples(res) > 0) {
+                    *quantitaCorrente = atoi(PQgetvalue(res, 0, 0));
+                    printf("Libro aggiunto al carrello con successo! Quantità: %d\n", *quantitaCorrente);
+                    exit = 1; // Successo
+                } else {
+                    printf("Errore nell'aggiunta al carrello: %s\n", PQresultErrorMessage(res));
+                    exit = 2; // Errore nell'esecuzione della query
+                }
             }
+        } else {
+            printf("Errore nel recupero delle copie disponibili: %s\n", PQresultErrorMessage(res));
+            exit = 2; // Errore nella query di recupero delle copie
         }
 
         PQclear(res);
     } else {
         printf("Errore: Connessione al DB fallita!\n");
-        exit = 2; // Errore nella connessione al DB
+        exit = 2; // Errore di connessione
     }
 
     disconnetti(conn);
     return exit;
 }
-
 
 
 //elimina dal carrello
@@ -278,7 +305,7 @@ if(conn != NULL){
   sprintf(query,"SELECT l.id_libro, l.titolo, l.autore ,l.num_copie_disponibili, l.genere "
              "FROM carrello c "
              "JOIN libro l ON c.libro_id = l.id_libro "
-             "WHERE c.user_id = %d;",userId);
+             "WHERE c.user_id = %d AND l.num_copie_disponibili > 0;",userId);
   res = PQexec(conn,query);
    if (PQresultStatus(res) != PGRES_TUPLES_OK) {
             printf("Errore nella ricerca dei libri disponibili: %s\n", PQresultErrorMessage(res));
@@ -294,16 +321,48 @@ return res;
 }
 
 //checkout
-int checkout(int userId) {
+int checkout(int userId, int *maxPrestiti) {
     PGconn *conn = connetti(DB_STRING);
     PGresult *res = NULL;
     char query[2048];
-    int exit = 1;  // successo
+    int exit = 1;  // Successo
 
     if (conn != NULL) {
         printf("Connessione al database riuscita!\n");
 
-        // Query per verificare se il checkout supera il limite massimo
+        // Verifica se ci sono libri senza copie disponibili
+        sprintf(query,
+                "SELECT l.id_libro "
+                "FROM carrello c "
+                "JOIN libro l ON c.libro_id = l.id_libro "
+                "WHERE c.user_id = %d AND c.is_checkout = FALSE AND l.num_copie_disponibili = 0;",
+                userId);
+
+        res = PQexec(conn, query);
+        if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+            printf("Errore nella verifica delle copie disponibili: %s\n", PQresultErrorMessage(res));
+            PQclear(res);
+            disconnetti(conn);
+            return 2;  // Errore durante il controllo
+        }
+
+        int libriNonDisponibili = PQntuples(res);
+        if (libriNonDisponibili > 0) {
+            printf("Attenzione: Alcuni libri nel carrello non sono più disponibili. Rimozione in corso...\n");
+            for (int i = 0; i < libriNonDisponibili; i++) {
+                int libroId = atoi(PQgetvalue(res, i, 0));
+                int rimuovi = removeCarrello(userId, libroId);
+                if (rimuovi != 1) {
+                    printf("Errore durante la rimozione del libro ID: %d dal carrello.\n", libroId);
+                    exit = 2; // Errore durante la rimozione
+                }
+            }
+            printf("Rimozione completata. Verifica prestiti disponibili...\n");
+            exit = 7;  // Copie terminate, non procedere
+        }
+        PQclear(res); // Liberiamo la memoria
+
+        // Query per verificare il numero di prestiti attivi, libri nel carrello e max prestiti
         sprintf(query, 
                 "WITH prestiti_correnti AS ("
                 "    SELECT COUNT(*) AS num_prestiti "
@@ -311,9 +370,10 @@ int checkout(int userId) {
                 "    WHERE id_utente = %d AND restituito = FALSE"
                 "), "
                 "carrello_corrente AS ("
-                "    SELECT COUNT(*) AS num_carrello "
-                "    FROM carrello "
-                "    WHERE user_id = %d AND is_checkout = FALSE"
+                "    SELECT SUM(quantita) AS num_carrello "
+                "    FROM carrello c "
+                "    JOIN libro l ON c.libro_id = l.id_libro "
+                "    WHERE c.user_id = %d AND c.is_checkout = FALSE AND l.num_copie_disponibili > 0"
                 ") "
                 "SELECT "
                 "    (SELECT num_prestiti FROM prestiti_correnti) AS prestiti_attivi, "
@@ -324,36 +384,40 @@ int checkout(int userId) {
                 userId, userId, userId);
 
         res = PQexec(conn, query);
-
         if (PQresultStatus(res) != PGRES_TUPLES_OK || PQntuples(res) == 0) {
             printf("Errore nel calcolo del numero massimo di prestiti: %s\n", PQresultErrorMessage(res));
             PQclear(res);
             disconnetti(conn);
-            return 2; // Errore durante il controllo
+            return 2;  // Errore durante il calcolo
         }
 
-        int prestitiAttivi = atoi(PQgetvalue(res, 0, 0));
         int libriCarrello = atoi(PQgetvalue(res, 0, 1));
-        int maxPrestiti = atoi(PQgetvalue(res, 0, 2));
+        *maxPrestiti = atoi(PQgetvalue(res, 0, 2));
 
-        if (prestitiAttivi + libriCarrello > maxPrestiti) {
-            printf("Errore: Numero massimo di prestiti raggiunto (%d). Non puoi prendere altri %d libri.\n",
-                   maxPrestiti, maxPrestiti - prestitiAttivi);
+        printf("Libri nel carrello (disponibili): %d\n", libriCarrello);  // Debug
+        printf("Max prestiti: %d\n", *maxPrestiti);  // Debug
+
+        // Verifica se il numero di libri nel carrello supera il numero massimo di prestiti
+        if (libriCarrello > *maxPrestiti) {
+            printf("Errore: Numero massimo di prestiti raggiunto (%d). Non puoi prendere altri libri.\n", *maxPrestiti);
             PQclear(res);
             disconnetti(conn);
-            return 3; // Superato il limite massimo di prestiti
+            return 3;  // Superato il limite massimo di prestiti
         }
 
-        PQclear(res);
+        printf("Checkout possibile. Libri nel carrello: %d, Max prestiti: %d\n",
+                libriCarrello, *maxPrestiti);
 
-     //setto is_checkout a true per far scatenare il trigger
-      sprintf(query, 
+        PQclear(res); // Liberiamo la memoria
+
+        // Esegui il checkout aggiornando lo stato del carrello
+        sprintf(query, 
                 "UPDATE carrello "
                 "SET is_checkout = TRUE "
                 "WHERE user_id = %d AND is_checkout = FALSE;", 
                 userId);
-        res = PQexec(conn, query);
 
+        res = PQexec(conn, query);
         if (PQresultStatus(res) != PGRES_COMMAND_OK) {
             printf("Errore nell'aggiornamento del carrello: %s\n", PQresultErrorMessage(res));
             PQclear(res);
@@ -362,16 +426,36 @@ int checkout(int userId) {
         }
 
         printf("Checkout completato con successo!\n");
+        PQclear(res); 
+        
+        sprintf(query,
+        "SELECT u.max_prestiti "
+        "FROM utente u "
+        "WHERE u.id_utente = %d;",
+        userId);
+        
+        res = PQexec(conn, query);
+if (PQresultStatus(res) != PGRES_TUPLES_OK || PQntuples(res) == 0) {
+    printf("Errore nel recupero di max_prestiti: %s\n", PQresultErrorMessage(res));
+    PQclear(res);
+    disconnetti(conn);
+    return 5;  // Errore durante il recupero del max_prestiti
+}
+
+*maxPrestiti = atoi(PQgetvalue(res, 0, 0));
+
+printf("Nuovo max_prestiti: %d\n", *maxPrestiti);
+
+PQclear(res);
+
     } else {
         printf("Errore: Connessione al DB fallita!\n");
-        exit = 2; // Errore connessione al DB
+        return 2;  // Errore connessione al DB
     }
 
-    PQclear(res);
     disconnetti(conn);
     return exit;
 }
-
 
 
 //aggiorna password

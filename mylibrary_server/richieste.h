@@ -43,9 +43,8 @@
 //ERRORI GENERALI
 #define LOGINNONTROVATO 301
 #define GIAREGISTRATO 302
-#define LIBRONONTROVATO 303
 #define CARRELLOVUOTO 304
-#define LIBRODUPLICATO 305
+#define LIBRONONDISPONIBILE 305
 #define VECCHIAPASSWORDERRATA 306
 
 
@@ -55,9 +54,9 @@ void crea_risposta_registrazione(int comando, char *risposta, char *username);
 void crea_risposta_cerca_libro(int comando, PGresult *res, char *risposta);
 void crea_risposta_cerca_libro_genere(int comando, PGresult *res, char *risposta);
 void crea_risposta_cerca_libro_disponibili(int comando, PGresult *res, char *risposta);
-void crea_risposta_aggiungi_carrello(int comando, char *risposta);
+void crea_risposta_aggiungi_carrello(int comando, char *risposta,int maxCopie,int quantitaCorrente);
 void crea_risposta_rimuovi_carrello(int comando, char *risposta);
-void crea_risposta_checkout(int comando, char *risposta);
+void crea_risposta_checkout(int comando, char *risposta,int maxPrestiti);
 void crea_risposta_modifica_password(int comando, char *risposta);
 void crea_risposta_visualizza_carrello(int comando, PGresult *res, char *risposta);
 

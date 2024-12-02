@@ -13,10 +13,10 @@ int check(char *username);
 PGresult *cercaLibro(char *testo);
 PGresult *cercaLibroPerGenere(char *genere);
 PGresult *cercaLibroDisponibile();
-int addCarrello(int userId,int libroId);
+int addCarrello(int userId,int libroId,int *maxCopie,int *quantitaCorrente);
 int removeCarrello(int userId,int libroId);
 PGresult *visualizzaCarrello(int userId);
-int checkout(int userId);
+int checkout(int userId,int *maxPrestiti);
 int aggiornaPassword(int userId, const char *vecchiaPassword, const char *nuovaPassword);
 
 

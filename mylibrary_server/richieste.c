@@ -75,10 +75,6 @@ void crea_risposta_cerca_libro(int comando, PGresult *res, char *risposta)
             sprintf(risposta, "Comando: %d | Errore durante la ricerca del libro.", comando);
             break;
 
-        case LIBRONONTROVATO:
-            sprintf(risposta, "Comando: %d | Nessun libro corrisponde ai criteri di ricerca.", comando);
-            break;
-
         default:
             sprintf(risposta, "Comando sconosciuto: %d", comando);
             break;
@@ -122,10 +118,6 @@ void crea_risposta_cerca_libro_genere(int comando, PGresult *res, char *risposta
 
         case CERCA_LIBRO_GENERE_ERR:
             sprintf(risposta, "Comando: %d | Errore durante la ricerca del libro per genere.", comando);
-            break;
-
-        case LIBRONONTROVATO:
-            sprintf(risposta, "Comando: %d | Nessun libro corrisponde al genere richiesto.", comando);
             break;
 
         default:
@@ -174,10 +166,6 @@ void crea_risposta_cerca_libro_disponibili(int comando, PGresult *res, char *ris
             sprintf(risposta, "Comando: %d | Errore durante la ricerca dei libri disponibili.", comando);
             break;
 
-        case LIBRONONTROVATO:
-            sprintf(risposta, "Comando: %d | Nessun libro disponibile trovato.", comando);
-            break;
-
         default:
             sprintf(risposta, "Comando sconosciuto: %d", comando);
             break;
@@ -187,20 +175,16 @@ void crea_risposta_cerca_libro_disponibili(int comando, PGresult *res, char *ris
 }
 
 
-void crea_risposta_aggiungi_carrello(int comando, char *risposta)
+void crea_risposta_aggiungi_carrello(int comando, char *risposta,int maxCopie,int quantitaCorrente)
 {
     switch(comando) {
     
         case ADD_CARRELLO_OK:
-            sprintf(risposta, "Comando: %d | Il libro è stato aggiunto al carrello con successo!", comando);
+            sprintf(risposta, "Comando: %d | Il libro è stato aggiunto al carrello con successo! | Max Copie: %d | Quantita: %d", comando,maxCopie,quantitaCorrente);
             break;
             
         case ADD_CARRELLO_ERR:
             sprintf(risposta, "Comando: %d | Errore durante l'aggiunta del libro al carrello.", comando);
-            break;
-            
-        case LIBRODUPLICATO:
-            sprintf(risposta, "Comando: %d | Errore! Libro già presente nel carrello!", comando);
             break;
             
         default:
@@ -221,10 +205,6 @@ void crea_risposta_rimuovi_carrello(int comando, char *risposta)
             sprintf(risposta, "Comando: %d | Errore durante la rimozione del libro dal carrello.", comando);
             break;
 
-        case LIBRONONTROVATO:
-            sprintf(risposta, "Comando: %d | Il libro non è presente nel carrello.", comando);
-            break;
-
         default:
             sprintf(risposta, "Comando sconosciuto: %d", comando);
             break;
@@ -232,17 +212,25 @@ void crea_risposta_rimuovi_carrello(int comando, char *risposta)
 }
 
 
-void crea_risposta_checkout(int comando, char *risposta)
+void crea_risposta_checkout(int comando, char *risposta,int maxPrestiti)
 {
     switch(comando) {
         case CHECKOUT_OK:
-            sprintf(risposta, "Comando: %d | Checkout completato con successo! I libri sono stati presi in prestito!.", comando);
+            sprintf(risposta, "Comando: %d | Checkout completato con successo! | Max Prestiti aggiornati: %d", comando,maxPrestiti);
             break;
 
         case CHECKOUT_ERR:
-            sprintf(risposta, "Comando: %d | Errore durante il checkout. Riprova più tardi.", comando);
+            sprintf(risposta, "Comando: %d | Errore durante il checkout! Riprova più tardi. | Max Prestiti aggiornati: %d", comando,maxPrestiti);
             break;
-
+            
+        case MAXPRESTITI_ERR:
+            sprintf(risposta, "Comando: %d | Errore durante il checkout! Hai superato il limite massimo di prestiti! | Max Prestiti aggiornati: %d", comando,maxPrestiti);
+            break;
+        
+        case LIBRONONDISPONIBILE:
+        sprintf(risposta, "Comando: %d | Errore! Alcuni libri nel carrello non sono più disponibili! | Max Prestiti aggiornati: %d", comando,maxPrestiti);
+            break;
+        
         default:
             sprintf(risposta, "Comando sconosciuto: %d", comando);
             break;
