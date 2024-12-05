@@ -302,7 +302,7 @@ PGresult *res = NULL;
 char query[1024];
 
 if(conn != NULL){
-  sprintf(query,"SELECT l.id_libro, l.titolo, l.autore ,l.num_copie_disponibili, l.genere "
+  sprintf(query,"SELECT l.id_libro, l.titolo, l.autore ,l.num_copie_disponibili, l.genere , quantita "
              "FROM carrello c "
              "JOIN libro l ON c.libro_id = l.id_libro "
              "WHERE c.user_id = %d AND l.num_copie_disponibili > 0;",userId);
@@ -495,4 +495,35 @@ int aggiornaPassword(int userId, const char *vecchiaPassword, const char *nuovaP
     disconnetti(conn);
     return exit;
 }
+
+// Visualizza prestiti
+PGresult *visualizzaPrestiti(int userId) {
+    PGconn *conn = connetti(DB_STRING);
+    PGresult *res = NULL;
+    char query[1024];
+
+    if (conn != NULL) {
+         sprintf(query, 
+            "SELECT p.id_libro, l.titolo, l.autore, l.genere, COUNT(p.id_libro) AS copie_prestito, p.data_scadenza "
+            "FROM prestito p "
+            "LEFT JOIN libro l ON p.id_libro = l.id_libro "
+            "WHERE p.id_utente = %d AND p.restituito = false "
+            "GROUP BY p.id_libro, l.titolo, l.autore, l.genere, p.data_scadenza;", 
+            userId);
+
+        res = PQexec(conn, query);
+
+        if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+            printf("Errore nella ricerca dei prestiti: %s\n", PQresultErrorMessage(res));
+            PQclear(res);
+            res = NULL;
+        }
+    } else 
+        printf("Errore: Connessione al DB fallita!\n");
+    
+
+    disconnetti(conn);
+    return res;
+}
+
 

@@ -55,6 +55,11 @@ int processa_input_client(char *richiesta, char *risposta, int socket_fd)
  case MODPASS:
    modpass(dati,risposta);
    break;
+  
+ case VISUALIZZA_PRESTITI:
+   visualizza_prestiti(dati,risposta);
+   break;
+ 
    
 default:
    sprintf(risposta, "Comando non riconosciuto: %d", comando);
@@ -223,6 +228,19 @@ else if(esito == 3)
 crea_risposta_modifica_password(VECCHIAPASSWORDERRATA,risposta);
 else
 crea_risposta_modifica_password(MODPASS_ERR,risposta);
+
+}
+
+void visualizza_prestiti(char *dati, char  *risposta)
+{
+int userId = atoi(strtok(dati,"|"));
+
+PGresult *esito = visualizzaPrestiti(userId);
+
+if(esito != NULL)
+ crea_risposta_visualizza_prestiti(VISUALIZZA_PRESTITI_OK,esito,risposta);
+else
+ crea_risposta_visualizza_prestiti(VISUALIZZA_PRESTITI_ERR,esito,risposta);
 
 }
 

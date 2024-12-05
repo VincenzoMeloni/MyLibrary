@@ -18,6 +18,6 @@ int removeCarrello(int userId,int libroId);
 PGresult *visualizzaCarrello(int userId);
 int checkout(int userId,int *maxPrestiti);
 int aggiornaPassword(int userId, const char *vecchiaPassword, const char *nuovaPassword);
-
+PGresult *visualizzaPrestiti(int userId);
 
 #endif

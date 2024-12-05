@@ -277,12 +277,14 @@ void crea_risposta_visualizza_carrello(int comando, PGresult *res, char *rispost
                 for (int i = 0; i < num; i++) {
                     int copie = atoi(PQgetvalue(res, i, 3));
                     int id = atoi(PQgetvalue(res, i, 0));
-                    sprintf(tmp + strlen(tmp), "ID: %d, Titolo: %s, Autore: %s, Copie disponibili: %d, Genere: %s\n",
+                    int quantita = atoi(PQgetvalue(res, i , 5));
+                    sprintf(tmp + strlen(tmp), "ID: %d, Titolo: %s, Autore: %s, Copie disponibili: %d, Genere: %s, Quantita: %d\n",
                             id,  // id libro
                             PQgetvalue(res, i, 1), // Titolo
                             PQgetvalue(res, i, 2), // Autore
                             copie, // Copie disponibili
-                            PQgetvalue(res, i, 4)); //Genere
+                            PQgetvalue(res, i, 4),  //Genere
+                            quantita); 
                 }
                 strcat(risposta, tmp);
             break;
@@ -299,3 +301,49 @@ void crea_risposta_visualizza_carrello(int comando, PGresult *res, char *rispost
 
     free(tmp);
 }
+
+void crea_risposta_visualizza_prestiti(int comando, PGresult *res, char *risposta)
+{
+    int num = PQntuples(res);
+    char *tmp = malloc(sizeof(char) * 1000);
+    
+    if (tmp == NULL) {
+        sprintf(risposta, "Errore nell'allocazione della memoria.");
+        return;
+    }
+    tmp[0] = '\0';
+
+    switch (comando) {
+        case VISUALIZZA_PRESTITI_OK: {
+
+                sprintf(risposta, "Comando: %d | Risultati dei libri presi in prestito:\n", comando);
+                for (int i = 0; i < num; i++) {
+                    int id_libro = atoi(PQgetvalue(res, i, 0));
+                    int copie_prestito = atoi(PQgetvalue(res, i, 4)); 
+                    char *data_scadenza = PQgetvalue(res, i, 5);
+                    
+                    sprintf(tmp + strlen(tmp), 
+                            "ID: %d, Titolo: %s, Autore: %s, Genere: %s, Copie in prestito: %d, Data di scadenza: %s\n",
+                            id_libro,                             
+                            PQgetvalue(res, i, 1),                // Titolo
+                            PQgetvalue(res, i, 2),                // Autore
+                            PQgetvalue(res, i, 3),                // Genere
+                            copie_prestito,                      
+                            data_scadenza);                       
+                }
+                strcat(risposta, tmp);
+            break;
+        }
+
+        case VISUALIZZA_PRESTITI_ERR:
+            sprintf(risposta, "Comando: %d | Errore durante il recupero dei prestiti.", comando);
+            break;
+
+        default:
+            sprintf(risposta, "Comando sconosciuto: %d", comando);
+            break;
+    }
+
+    free(tmp);
+}
+

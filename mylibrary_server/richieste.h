@@ -14,6 +14,7 @@
 #define CHECKOUT_OK 108
 #define MODPASS_OK 109
 #define VISUALIZZA_CARRELLO_OK 110
+#define VISUALIZZA_PRESTITI_OK 111
 
 // server ERR
 #define LOGIN_ERR 201
@@ -27,6 +28,7 @@
 #define MODPASS_ERR 209
 #define VISUALIZZA_CARRELLO_ERR 210
 #define MAXPRESTITI_ERR 211
+#define VISUALIZZA_PRESTITI_ERR 212
 
 // client
 #define LOGIN 1
@@ -39,6 +41,7 @@
 #define CHECKOUT 8
 #define MODPASS 9
 #define VISUALIZZA_CARRELLO 10
+#define VISUALIZZA_PRESTITI 11
 
 //ERRORI GENERALI
 #define LOGINNONTROVATO 301
@@ -59,7 +62,7 @@ void crea_risposta_rimuovi_carrello(int comando, char *risposta);
 void crea_risposta_checkout(int comando, char *risposta,int maxPrestiti);
 void crea_risposta_modifica_password(int comando, char *risposta);
 void crea_risposta_visualizza_carrello(int comando, PGresult *res, char *risposta);
-
+void crea_risposta_visualizza_prestiti(int comando, PGresult *res, char *risposta);
 
 #endif
 
