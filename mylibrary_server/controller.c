@@ -59,6 +59,10 @@ int processa_input_client(char *richiesta, char *risposta, int socket_fd)
  case VISUALIZZA_PRESTITI:
    visualizza_prestiti(dati,risposta);
    break;
+   
+ case RECUPERA_QUANTITA:
+   recupera_quantita(dati,risposta);
+   break;
  
    
 default:
@@ -244,3 +248,18 @@ else
 
 }
 
+void recupera_quantita(char *dati, char *risposta)
+{
+ int userId = atoi(strtok(dati,"|"));
+ int libroId = atoi(strtok(NULL,"|"));
+ int quantita = 0;
+ 
+ int esito = RecuperaQuantitaCarrello(userId,libroId,&quantita);
+ 
+ if(esito == 1)
+ crea_risposta_recupera_quantita(RECUPERA_QUANTITA_OK,risposta,quantita);
+ else
+ crea_risposta_recupera_quantita(RECUPERA_QUANTITA_ERR,risposta,quantita);
+ 
+
+}

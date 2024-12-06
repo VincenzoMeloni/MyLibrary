@@ -527,3 +527,34 @@ PGresult *visualizzaPrestiti(int userId) {
 }
 
 
+//Recupera quantità
+int RecuperaQuantitaCarrello(int userId, int libroId,int *quantita){
+PGconn *conn = connetti(DB_STRING);
+PGresult *res = NULL;
+char query[1024];
+int exit = 0;
+
+if(conn != NULL){
+sprintf(query,"SELECT quantita from carrello where user_id = %d AND libro_id = %d;",userId,libroId);
+
+res = PQexec(conn, query);
+
+if (PQresultStatus(res) == PGRES_TUPLES_OK) {
+            if (PQntuples(res) > 0){ 
+                *quantita = atoi(PQgetvalue(res, 0, 0));
+                exit = 1;  // ok
+            }
+            else {
+              *quantita = 0;
+              exit = 1;
+            }
+      }else 
+            printf("Errore nella query: %s\n", PQresultErrorMessage(res));
+
+        PQclear(res);  
+    } else
+        printf("Error: Connessione al DB Fallita!\n");
+
+    disconnetti(conn);
+    return exit;
+}

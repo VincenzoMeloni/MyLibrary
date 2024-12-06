@@ -19,5 +19,6 @@ PGresult *visualizzaCarrello(int userId);
 int checkout(int userId,int *maxPrestiti);
 int aggiornaPassword(int userId, const char *vecchiaPassword, const char *nuovaPassword);
 PGresult *visualizzaPrestiti(int userId);
+int RecuperaQuantitaCarrello(int userId, int libroId,int *quantita);
 
 #endif

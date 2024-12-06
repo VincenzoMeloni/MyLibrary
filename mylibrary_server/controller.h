@@ -13,5 +13,7 @@ void visualizza_carrello(char *dati, char *risposta);
 void check_out(char *dati, char *risposta);
 void modpass(char *dati, char *risposta);
 void visualizza_prestiti(char *dati, char  *risposta);
+void recupera_quantita(char *dati, char *risposta);
+
 
 #endif

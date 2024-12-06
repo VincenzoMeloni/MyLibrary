@@ -347,3 +347,18 @@ void crea_risposta_visualizza_prestiti(int comando, PGresult *res, char *rispost
     free(tmp);
 }
 
+
+void crea_risposta_recupera_quantita(int comando, char *risposta, int quantita)
+{  
+    switch(comando){
+    
+    case RECUPERA_QUANTITA_OK:
+            sprintf(risposta, "Comando: %d | Quantita: %d", comando, quantita);
+            break;
+    
+    case RECUPERA_QUANTITA_ERR:
+            sprintf(risposta, "Comando: %d | Quantita: %d", comando, quantita);
+            break;
+    }
+
+}
